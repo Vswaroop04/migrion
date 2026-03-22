@@ -1,0 +1,27 @@
+# Go binaries (but keep bin/migratex.js)
+bin/migratex-*
+migratex
+node_modules/
+*.exe
+*.test
+*.out
+vendor/
+
+# TypeScript sidecar
+sidecar/node_modules/
+sidecar/dist/
+sidecar/.tsbuildinfo
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.*

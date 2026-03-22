@@ -1,0 +1,35 @@
+{
+  "name": "migratex",
+  "version": "0.1.0",
+  "description": "Schema diff and migration engine for ORMs (Drizzle, Prisma, TypeORM)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vswaroop04/migratex"
+  },
+  "bin": {
+    "migratex": "bin/migratex.js"
+  },
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "files": [
+    "bin/",
+    "install.js"
+  ],
+  "keywords": [
+    "migrations",
+    "schema",
+    "database",
+    "orm",
+    "drizzle",
+    "prisma",
+    "typeorm",
+    "postgresql",
+    "mysql",
+    "dag"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

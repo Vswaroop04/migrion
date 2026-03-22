@@ -1,0 +1,41 @@
+{
+  "name": "@migratex/sidecar",
+  "version": "0.1.0",
+  "description": "TypeScript ORM schema exporters for migratex (Drizzle, Prisma, TypeORM)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vswaroop04/migratex",
+    "directory": "sidecar"
+  },
+  "type": "module",
+  "bin": {
+    "migratex-export": "./dist/bin/migratex-export.js"
+  },
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch"
+  },
+  "dependencies": {
+    "tsx": "^4.19.0"
+  },
+  "peerDependencies": {
+    "drizzle-orm": ">=0.30.0",
+    "@prisma/internals": ">=5.0.0",
+    "typeorm": ">=0.3.0"
+  },
+  "peerDependenciesMeta": {
+    "drizzle-orm": { "optional": true },
+    "@prisma/internals": { "optional": true },
+    "typeorm": { "optional": true }
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "tsup": "^8.4.0",
+    "drizzle-orm": "^0.44.0",
+    "@types/node": "^22.0.0"
+  }
+}

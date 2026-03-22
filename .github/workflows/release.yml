@@ -1,0 +1,80 @@
+name: Release & Publish
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      # Run tests first
+      - name: Test
+        run: go test ./internal/... ./cmd/...
+
+      # Read version from package.json
+      - name: Get version
+        id: version
+        run: echo "VERSION=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      # Check if this version tag already exists (skip if already released)
+      - name: Check if tag exists
+        id: tag_check
+        run: |
+          if git rev-parse "v${{ steps.version.outputs.VERSION }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Cross-compile Go binaries
+      - name: Build binaries
+        if: steps.tag_check.outputs.exists == 'false'
+        run: make build-all
+
+      # Create GitHub Release with binaries
+      - name: Create GitHub Release
+        if: steps.tag_check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "v${{ steps.version.outputs.VERSION }}" \
+            --title "v${{ steps.version.outputs.VERSION }}" \
+            --generate-notes \
+            bin/migratex-darwin-arm64 \
+            bin/migratex-darwin-amd64 \
+            bin/migratex-linux-amd64 \
+            bin/migratex-linux-arm64 \
+            bin/migratex-windows-amd64.exe
+
+      # Publish to npm
+      - name: Publish to npm
+        if: steps.tag_check.outputs.exists == 'false'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
+
+      # Also publish the sidecar package
+      - name: Publish sidecar
+        if: steps.tag_check.outputs.exists == 'false'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        working-directory: sidecar
+        run: |
+          npm install
+          npm run build
+          npm publish --access public

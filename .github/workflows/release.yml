@@ -30,6 +30,9 @@ jobs:
       - name: Test
         run: go test ./internal/... ./cmd/...
 
+      - name: Build sidecar
+        run: make sidecar
+
       - name: Build binaries
         run: make build-all
 

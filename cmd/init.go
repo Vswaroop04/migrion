@@ -2,16 +2,16 @@ package cmd
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/vswaroop04/migratex/internal/config"
 )
 
-// init() runs automatically when this package is imported.
-// This is Go's way of doing module-level side effects.
 func init() {
 	rootCmd.AddCommand(initCmd)
 }
@@ -26,53 +26,56 @@ var initCmd = &cobra.Command{
 		fmt.Println("Initializing migratex...")
 		fmt.Println()
 
-		// Ask for ORM
-		fmt.Print("ORM (drizzle/prisma/typeorm) [drizzle]: ")
-		orm, _ := reader.ReadString('\n')
-		orm = strings.TrimSpace(orm)
-		if orm == "" {
-			orm = "drizzle"
+		// Auto-detect ORM
+		orm := detectORM()
+		if orm != "" {
+			fmt.Printf("Detected ORM: %s\n", orm)
+		} else {
+			fmt.Print("ORM (drizzle/prisma/typeorm) [drizzle]: ")
+			input, _ := reader.ReadString('\n')
+			orm = strings.TrimSpace(input)
+			if orm == "" {
+				orm = "drizzle"
+			}
 		}
 
-		// Ask for dialect
-		fmt.Print("Database (pg/mysql) [pg]: ")
-		dialect, _ := reader.ReadString('\n')
-		dialect = strings.TrimSpace(dialect)
-		if dialect == "" {
-			dialect = "pg"
+		// Auto-detect dialect from ORM config
+		ormCfg := readORMConfig(orm)
+		dialect := ormCfg.dialect
+		if dialect != "" {
+			fmt.Printf("Detected database: %s (from %s config)\n", dialect, orm)
+		} else {
+			fmt.Print("Database (pg/mysql) [pg]: ")
+			input, _ := reader.ReadString('\n')
+			dialect = strings.TrimSpace(input)
+			if dialect == "" {
+				dialect = "pg"
+			}
 		}
 
-		// Ask for schema path
-		defaultSchema := "./src/schema.ts"
-		if orm == "prisma" {
-			defaultSchema = "./prisma/schema.prisma"
-		}
-		fmt.Printf("Schema path [%s]: ", defaultSchema)
-		schemaPath, _ := reader.ReadString('\n')
-		schemaPath = strings.TrimSpace(schemaPath)
+		// Auto-detect schema path from ORM config
+		schemaPath := ormCfg.schemaPath
 		if schemaPath == "" {
-			schemaPath = defaultSchema
+			schemaPath = detectSchemaPath(orm)
+		}
+		fmt.Printf("Schema path [%s]: ", schemaPath)
+		input, _ := reader.ReadString('\n')
+		if v := strings.TrimSpace(input); v != "" {
+			schemaPath = v
 		}
 
-		// Ask for connection
-		fmt.Print("Database URL (or set DATABASE_URL env): ")
-		connection, _ := reader.ReadString('\n')
-		connection = strings.TrimSpace(connection)
-
+		// No connection field — migratex reads it from the ORM config at runtime
 		cfg := &config.Config{
 			ORM:           orm,
 			Dialect:       dialect,
-			Connection:    connection,
 			SchemaPath:    schemaPath,
 			MigrationsDir: "./migrations",
 		}
 
-		// Save config
 		if err := config.Save(".", cfg); err != nil {
 			return fmt.Errorf("saving config: %w", err)
 		}
 
-		// Create migrations directory
 		if err := os.MkdirAll("./migrations", 0o755); err != nil {
 			return fmt.Errorf("creating migrations dir: %w", err)
 		}
@@ -81,10 +84,182 @@ var initCmd = &cobra.Command{
 		fmt.Println("Created migratex.config.yaml")
 		fmt.Println("Created migrations/")
 		fmt.Println()
+		fmt.Printf("migratex will read the database connection from your %s config at runtime.\n", orm)
+		fmt.Println()
 		fmt.Println("Next steps:")
-		fmt.Println("  1. Set DATABASE_URL if you haven't already")
-		fmt.Println("  2. Run: migratex generate")
+		fmt.Println("  Run: migratex generate")
 
 		return nil
 	},
+}
+
+type ormConfigResult struct {
+	dialect    string
+	schemaPath string
+}
+
+func readORMConfig(orm string) ormConfigResult {
+	switch orm {
+	case "drizzle":
+		return readDrizzleConfig()
+	case "prisma":
+		return readPrismaConfig()
+	case "typeorm":
+		return readTypeORMConfig()
+	}
+	return ormConfigResult{}
+}
+
+func readDrizzleConfig() ormConfigResult {
+	cfg := ormConfigResult{}
+	candidates := []string{"drizzle.config.ts", "drizzle.config.js", "db/drizzle.config.ts"}
+
+	var content string
+	for _, c := range candidates {
+		data, err := os.ReadFile(c)
+		if err == nil {
+			content = string(data)
+			break
+		}
+	}
+	if content == "" {
+		return cfg
+	}
+
+	dialectRe := regexp.MustCompile(`dialect:\s*["'](\w+)["']`)
+	if m := dialectRe.FindStringSubmatch(content); len(m) > 1 {
+		switch m[1] {
+		case "postgresql", "pg":
+			cfg.dialect = "pg"
+		case "mysql":
+			cfg.dialect = "mysql"
+		}
+	}
+
+	schemaRe := regexp.MustCompile(`schema:\s*["']([^"']+)["']`)
+	if m := schemaRe.FindStringSubmatch(content); len(m) > 1 {
+		cfg.schemaPath = m[1]
+	}
+
+	return cfg
+}
+
+func readPrismaConfig() ormConfigResult {
+	cfg := ormConfigResult{}
+	candidates := []string{"prisma/schema.prisma", "schema.prisma"}
+
+	for _, c := range candidates {
+		data, err := os.ReadFile(c)
+		if err != nil {
+			continue
+		}
+		cfg.schemaPath = c
+
+		providerRe := regexp.MustCompile(`provider\s*=\s*"(\w+)"`)
+		if m := providerRe.FindStringSubmatch(string(data)); len(m) > 1 {
+			switch m[1] {
+			case "postgresql":
+				cfg.dialect = "pg"
+			case "mysql":
+				cfg.dialect = "mysql"
+			}
+		}
+		break
+	}
+
+	return cfg
+}
+
+func readTypeORMConfig() ormConfigResult {
+	cfg := ormConfigResult{}
+
+	if data, err := os.ReadFile("ormconfig.json"); err == nil {
+		var ormCfg struct {
+			Type string `json:"type"`
+		}
+		if err := json.Unmarshal(data, &ormCfg); err == nil {
+			switch ormCfg.Type {
+			case "postgres":
+				cfg.dialect = "pg"
+			case "mysql":
+				cfg.dialect = "mysql"
+			}
+		}
+		return cfg
+	}
+
+	for _, f := range []string{"data-source.ts", "src/data-source.ts"} {
+		data, err := os.ReadFile(f)
+		if err != nil {
+			continue
+		}
+		typeRe := regexp.MustCompile(`type:\s*["'](\w+)["']`)
+		if m := typeRe.FindStringSubmatch(string(data)); len(m) > 1 {
+			switch m[1] {
+			case "postgres":
+				cfg.dialect = "pg"
+			case "mysql":
+				cfg.dialect = "mysql"
+			}
+		}
+		break
+	}
+
+	return cfg
+}
+
+func detectORM() string {
+	data, err := os.ReadFile("package.json")
+	if err != nil {
+		return ""
+	}
+
+	var pkg struct {
+		Dependencies    map[string]string `json:"dependencies"`
+		DevDependencies map[string]string `json:"devDependencies"`
+	}
+	if err := json.Unmarshal(data, &pkg); err != nil {
+		return ""
+	}
+
+	allDeps := make(map[string]bool)
+	for k := range pkg.Dependencies {
+		allDeps[k] = true
+	}
+	for k := range pkg.DevDependencies {
+		allDeps[k] = true
+	}
+
+	if allDeps["drizzle-orm"] {
+		return "drizzle"
+	}
+	if allDeps["@prisma/client"] || allDeps["prisma"] {
+		return "prisma"
+	}
+	if allDeps["typeorm"] {
+		return "typeorm"
+	}
+
+	return ""
+}
+
+func detectSchemaPath(orm string) string {
+	switch orm {
+	case "prisma":
+		return "./prisma/schema.prisma"
+	default:
+		candidates := []string{
+			"./src/db/schema.ts",
+			"./src/schema.ts",
+			"./db/schema.ts",
+			"./db/schema/index.ts",
+			"./src/db/schema/index.ts",
+		}
+		for _, c := range candidates {
+			if _, err := os.Stat(c); err == nil {
+				return c
+			}
+		}
+		return "./src/schema.ts"
+	}
 }

@@ -171,10 +171,24 @@ func readORMSchema(cfg *config.Config) (*schema.Schema, error) {
 
 // findSidecar locates the sidecar script.
 func findSidecar() string {
-	// Check relative to the migratex binary
+	// Get the directory of the running binary
+	binDir := ""
+	if exe, err := os.Executable(); err == nil {
+		binDir = filepath.Dir(exe)
+		// If binary is in a bin/ dir, go up one level to the package root
+		if filepath.Base(binDir) == "bin" {
+			binDir = filepath.Dir(binDir)
+		}
+	}
+
 	candidates := []string{
+		// Relative to the Go binary (npm install puts sidecar next to bin/)
+		filepath.Join(binDir, "sidecar", "dist", "bin", "migratex-export.js"),
+		// npm node_modules install
+		"./node_modules/migratex/sidecar/dist/bin/migratex-export.js",
+		// Local development
+		"./sidecar/dist/bin/migratex-export.js",
 		"./sidecar/bin/migratex-export.ts",
-		"./node_modules/@migratex/sidecar/dist/bin/migratex-export.js",
 	}
 
 	for _, c := range candidates {
@@ -183,7 +197,7 @@ func findSidecar() string {
 		}
 	}
 
-	// Default: assume it's in the sidecar directory
+	// Default: local dev path
 	return "./sidecar/bin/migratex-export.ts"
 }
 

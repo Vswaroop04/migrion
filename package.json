@@ -15,7 +15,8 @@
   },
   "files": [
     "bin/migratex.js",
-    "install.js"
+    "install.js",
+    "sidecar/dist/"
   ],
   "keywords": [
     "migrations",

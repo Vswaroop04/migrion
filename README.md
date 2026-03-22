@@ -46,13 +46,7 @@ every migration automatically gets a reverse. rollbacks are generated, not hand-
 ## install
 
 ```bash
-npm install -g migratex
-```
-
-or just run it directly:
-
-```bash
-npx migratex init
+npm install migratex
 ```
 
 ## quickstart

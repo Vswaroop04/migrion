@@ -8,52 +8,50 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  publish:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v5
+      - name: Setup Go
+        uses: actions/setup-go@v5
         with:
-          go-version: "1.22"
+          go-version: "1.24"
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: "20"
           registry-url: "https://registry.npmjs.org"
 
-      # Run tests first
       - name: Test
         run: go test ./internal/... ./cmd/...
 
-      # Read version from package.json
-      - name: Get version
-        id: version
-        run: echo "VERSION=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Build binaries
+        run: make build-all
 
-      # Check if this version tag already exists (skip if already released)
-      - name: Check if tag exists
-        id: tag_check
+      # Check if migratex version already exists on npm
+      - name: Check migratex version
+        id: migratex_check
         run: |
-          if git rev-parse "v${{ steps.version.outputs.VERSION }}" >/dev/null 2>&1; then
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if npm view "migratex@$VERSION" version 2>/dev/null; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # Cross-compile Go binaries
-      - name: Build binaries
-        if: steps.tag_check.outputs.exists == 'false'
-        run: make build-all
 
-      # Create GitHub Release with binaries
       - name: Create GitHub Release
-        if: steps.tag_check.outputs.exists == 'false'
+        if: steps.migratex_check.outputs.exists == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "v${{ steps.version.outputs.VERSION }}" \
-            --title "v${{ steps.version.outputs.VERSION }}" \
+          gh release create "v${{ steps.migratex_check.outputs.version }}" \
+            --title "v${{ steps.migratex_check.outputs.version }}" \
             --generate-notes \
             bin/migratex-darwin-arm64 \
             bin/migratex-darwin-amd64 \
@@ -61,20 +59,8 @@ jobs:
             bin/migratex-linux-arm64 \
             bin/migratex-windows-amd64.exe
 
-      # Publish to npm
-      - name: Publish to npm
-        if: steps.tag_check.outputs.exists == 'false'
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Publish migratex
+        if: steps.migratex_check.outputs.exists == 'false'
         run: npm publish --access public
-
-      # Also publish the sidecar package
-      - name: Publish sidecar
-        if: steps.tag_check.outputs.exists == 'false'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        working-directory: sidecar
-        run: |
-          npm install
-          npm run build
-          npm publish --access public

@@ -3,7 +3,6 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
-const { execSync } = require("child_process");
 
 const platformMap = {
   darwin: "darwin",
@@ -29,7 +28,7 @@ const version = pkg.version;
 const ext = os.platform() === "win32" ? ".exe" : "";
 const binaryName = `migratex-${platform}-${arch}${ext}`;
 
-const repo = "vswaroop04/migratex";
+const repo = "Vswaroop04/migrion";
 const url = `https://github.com/${repo}/releases/download/v${version}/${binaryName}`;
 
 const dest = path.join(__dirname, "bin", binaryName);

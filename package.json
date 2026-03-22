@@ -1,11 +1,11 @@
 {
   "name": "migratex",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Schema diff and migration engine for ORMs (Drizzle, Prisma, TypeORM)",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/vswaroop04/migratex"
+    "url": "https://github.com/Vswaroop04/migrion"
   },
   "bin": {
     "migratex": "bin/migratex.js"
@@ -14,7 +14,7 @@
     "postinstall": "node install.js"
   },
   "files": [
-    "bin/",
+    "bin/migratex.js",
     "install.js"
   ],
   "keywords": [

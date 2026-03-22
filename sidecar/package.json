@@ -1,11 +1,11 @@
 {
   "name": "@migratex/sidecar",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "TypeScript ORM schema exporters for migratex (Drizzle, Prisma, TypeORM)",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/vswaroop04/migratex",
+    "url": "https://github.com/Vswaroop04/migrion",
     "directory": "sidecar"
   },
   "type": "module",

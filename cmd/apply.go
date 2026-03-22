@@ -7,6 +7,7 @@ import (
 	"github.com/vswaroop04/migratex/internal/config"
 	"github.com/vswaroop04/migratex/internal/dag"
 	dbpkg "github.com/vswaroop04/migratex/internal/db"
+	"github.com/vswaroop04/migratex/internal/db/mysql"
 	"github.com/vswaroop04/migratex/internal/db/pg"
 )
 
@@ -31,6 +32,8 @@ var applyCmd = &cobra.Command{
 		switch cfg.Dialect {
 		case "pg":
 			introspector = &pg.Introspector{}
+		case "mysql":
+			introspector = &mysql.Introspector{}
 		default:
 			return fmt.Errorf("unsupported dialect: %s", cfg.Dialect)
 		}

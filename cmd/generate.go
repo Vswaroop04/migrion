@@ -12,6 +12,7 @@ import (
 	"github.com/vswaroop04/migratex/internal/config"
 	"github.com/vswaroop04/migratex/internal/dag"
 	dbpkg "github.com/vswaroop04/migratex/internal/db"
+	"github.com/vswaroop04/migratex/internal/db/mysql"
 	"github.com/vswaroop04/migratex/internal/db/pg"
 	"github.com/vswaroop04/migratex/internal/diff"
 	"github.com/vswaroop04/migratex/internal/planner"
@@ -193,8 +194,8 @@ func introspectDB(cfg *config.Config) (*schema.Schema, error) {
 	switch cfg.Dialect {
 	case "pg":
 		introspector = &pg.Introspector{}
-	// case "mysql":
-	//   introspector = &mysql.Introspector{}
+	case "mysql":
+		introspector = &mysql.Introspector{}
 	default:
 		return nil, fmt.Errorf("unsupported dialect: %s", cfg.Dialect)
 	}
@@ -211,8 +212,8 @@ func getDialect(cfg *config.Config) planner.SQLDialect {
 	switch cfg.Dialect {
 	case "pg":
 		return pg.Dialect{}
-	// case "mysql":
-	//   return mysql.Dialect{}
+	case "mysql":
+		return mysql.Dialect{}
 	default:
 		return pg.Dialect{}
 	}

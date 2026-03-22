@@ -11,6 +11,8 @@ import (
 // Dialect implements the SQLDialect interface for PostgreSQL.
 type Dialect struct{}
 
+func (Dialect) DialectName() string { return "pg" }
+
 func (Dialect) QuoteIdentifier(name string) string {
 	return fmt.Sprintf(`"%s"`, strings.ReplaceAll(name, `"`, `""`))
 }

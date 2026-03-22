@@ -1,6 +1,6 @@
 {
   "name": "migratex",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Schema diff and migration engine for ORMs (Drizzle, Prisma, TypeORM)",
   "license": "MIT",
   "repository": {

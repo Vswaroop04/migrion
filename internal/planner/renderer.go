@@ -10,6 +10,7 @@ import (
 
 // SQLDialect defines how to generate SQL for a specific database.
 type SQLDialect interface {
+	DialectName() string // "pg" or "mysql"
 	RenderColumnType(ct schema.ColumnType) string
 	RenderDefault(d *schema.ColumnDefault) string
 	SupportsEnumType() bool // PG: true (CREATE TYPE), MySQL: false (inline ENUM)
@@ -60,12 +61,18 @@ func renderOperation(op diff.Operation, d SQLDialect) string {
 		return renderCreateIndex(op, d)
 
 	case diff.OpDropIndex:
+		if d.DialectName() == "mysql" {
+			return fmt.Sprintf("DROP INDEX %s ON %s;", q(op.IndexName), q(op.TableName))
+		}
 		return fmt.Sprintf("DROP INDEX %s;", q(op.IndexName))
 
 	case diff.OpAddForeignKey:
 		return renderAddForeignKey(op, d)
 
 	case diff.OpDropForeignKey:
+		if d.DialectName() == "mysql" {
+			return fmt.Sprintf("ALTER TABLE %s DROP FOREIGN KEY %s;", q(op.TableName), q(op.FKName))
+		}
 		return fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s;", q(op.TableName), q(op.FKName))
 
 	case diff.OpAddPrimaryKey:
@@ -84,6 +91,9 @@ func renderOperation(op diff.Operation, d SQLDialect) string {
 			q(op.TableName), q(op.UniqueConstraint.Name), cols)
 
 	case diff.OpDropUniqueConstraint:
+		if d.DialectName() == "mysql" {
+			return fmt.Sprintf("ALTER TABLE %s DROP INDEX %s;", q(op.TableName), q(op.ConstraintName))
+		}
 		return fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s;", q(op.TableName), q(op.ConstraintName))
 
 	case diff.OpAddCheckConstraint:
@@ -91,6 +101,9 @@ func renderOperation(op diff.Operation, d SQLDialect) string {
 			q(op.TableName), q(op.CheckConstraint.Name), op.CheckConstraint.Expression)
 
 	case diff.OpDropCheckConstraint:
+		if d.DialectName() == "mysql" {
+			return fmt.Sprintf("ALTER TABLE %s DROP CHECK %s;", q(op.TableName), q(op.ConstraintName))
+		}
 		return fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s;", q(op.TableName), q(op.ConstraintName))
 
 	case diff.OpCreateEnum:
@@ -163,6 +176,13 @@ func renderColumnDef(col *schema.Column, d SQLDialect) string {
 
 func renderAlterColumn(op diff.Operation, d SQLDialect) string {
 	q := d.QuoteIdentifier
+
+	// MySQL uses MODIFY COLUMN for type/nullable changes (single statement)
+	if d.DialectName() == "mysql" {
+		return renderAlterColumnMySQL(op, d)
+	}
+
+	// PostgreSQL uses separate ALTER COLUMN statements
 	var lines []string
 
 	if op.ColumnChanges.TypeChange != nil {
@@ -193,6 +213,41 @@ func renderAlterColumn(op diff.Operation, d SQLDialect) string {
 	}
 
 	return strings.Join(lines, "\n")
+}
+
+func renderAlterColumnMySQL(op diff.Operation, d SQLDialect) string {
+	q := d.QuoteIdentifier
+
+	// Determine the target type
+	var colType string
+	if op.ColumnChanges.TypeChange != nil {
+		colType = d.RenderColumnType(op.ColumnChanges.TypeChange.To)
+	} else if op.Column != nil {
+		colType = d.RenderColumnType(op.Column.Type)
+	} else {
+		colType = d.RenderColumnType(op.ColumnChanges.TypeChange.From)
+	}
+
+	// Determine nullability
+	nullable := ""
+	if op.ColumnChanges.NullableChange != nil {
+		if op.ColumnChanges.NullableChange.To {
+			nullable = " NULL"
+		} else {
+			nullable = " NOT NULL"
+		}
+	}
+
+	// Determine default
+	defaultStr := ""
+	if op.ColumnChanges.DefaultChange != nil {
+		if op.ColumnChanges.DefaultChange.To != nil {
+			defaultStr = " DEFAULT " + d.RenderDefault(op.ColumnChanges.DefaultChange.To)
+		}
+	}
+
+	return fmt.Sprintf("ALTER TABLE %s MODIFY COLUMN %s %s%s%s;",
+		q(op.TableName), q(op.ColumnName), colType, nullable, defaultStr)
 }
 
 func renderCreateIndex(op diff.Operation, d SQLDialect) string {

@@ -1,10 +1,10 @@
-# migratex
+# Migratex
 
-a schema diff and migration engine that sits on top of your ORM. it treats database changes like a graph — not a numbered list — enabling deterministic migrations, drift detection, and safe CI/CD workflows.
+A schema diff and migration engine that sits on top of your ORM. it treats database changes like a graph not a numbered list enabling deterministic migrations, drift detection, and safe CI/CD workflows.
 
-works with **drizzle**, **prisma**, and **typeorm**. supports **postgres** (mysql coming soon).
+works with **drizzle**, **prisma**, and **typeorm**. supports **postgres** and **mysql**.
 
-## why
+## Why
 
 every ORM handles migrations the same way: numbered files in a folder. `001_create_users.sql`, `002_add_posts.sql`, and so on. works fine solo. put a team on it and two devs on different branches will both create `004_*.sql`, someone has to manually rename theirs, and you pray the SQL doesn't conflict. at scale this is a constant source of broken deploys, merge pain, and wasted time.
 

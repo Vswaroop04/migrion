@@ -11,6 +11,8 @@ import (
 // Dialect implements the SQLDialect interface for MySQL.
 type Dialect struct{}
 
+func (Dialect) DialectName() string { return "mysql" }
+
 func (Dialect) QuoteIdentifier(name string) string {
 	return fmt.Sprintf("`%s`", strings.ReplaceAll(name, "`", "``"))
 }

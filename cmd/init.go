@@ -58,10 +58,14 @@ var initCmd = &cobra.Command{
 		if schemaPath == "" {
 			schemaPath = detectSchemaPath(orm)
 		}
-		fmt.Printf("Schema path [%s]: ", schemaPath)
-		input, _ := reader.ReadString('\n')
-		if v := strings.TrimSpace(input); v != "" {
-			schemaPath = v
+		if ormCfg.schemaPath != "" {
+			fmt.Printf("Detected schema path: %s (from %s config)\n", schemaPath, orm)
+		} else {
+			fmt.Printf("Schema path [%s]: ", schemaPath)
+			input, _ := reader.ReadString('\n')
+			if v := strings.TrimSpace(input); v != "" {
+				schemaPath = v
+			}
 		}
 
 		// No connection field — migratex reads it from the ORM config at runtime

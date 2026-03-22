@@ -56,15 +56,19 @@ npm install migratex
 ```bash
 $ migratex init
 
-? ORM: drizzle
-? Dialect: pg
-? Schema path: ./src/schema.ts
-? Connection: postgresql://user:pass@localhost:5432/mydb
-? Migrations dir: ./migrations
+Initializing migratex...
+
+Detected ORM: drizzle              # or prisma, typeorm — auto-detected from package.json
+Detected database: pg (from drizzle config)
+Schema path [./db/schema]:
 
 Created migratex.config.yaml
 Created migrations/
+
+migratex will read the database connection from your drizzle config at runtime.
 ```
+
+no connection setup needed — migratex auto-detects your ORM from `package.json`, reads the dialect from your ORM config (`drizzle.config.ts`, `schema.prisma`, `ormconfig.json`), and uses the same env vars your ORM already uses for the database connection.
 
 ### generate
 
@@ -178,10 +182,11 @@ each migration node has:
 # migratex.config.yaml
 orm: drizzle          # drizzle | prisma | typeorm
 dialect: pg           # pg | mysql
-connection: postgresql://user:pass@localhost:5432/mydb
-schemaPath: ./src/schema.ts
+schemaPath: ./db/schema
 migrationsDir: ./migrations
 ```
+
+no connection field needed — migratex reads it from your ORM's config at runtime. it checks `drizzle.config.ts`, `schema.prisma`, or `ormconfig.json` and uses the same env vars your ORM already uses (`DATABASE_URL`, `PGHOST`, etc.).
 
 ## license
 

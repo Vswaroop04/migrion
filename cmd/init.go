@@ -26,46 +26,41 @@ var initCmd = &cobra.Command{
 		fmt.Println("Initializing migratex...")
 		fmt.Println()
 
-		// Auto-detect ORM
-		orm := detectORM()
-		if orm != "" {
-			fmt.Printf("Detected ORM: %s\n", orm)
-		} else {
-			fmt.Print("ORM (drizzle/prisma/typeorm) [drizzle]: ")
-			input, _ := reader.ReadString('\n')
-			orm = strings.TrimSpace(input)
-			if orm == "" {
-				orm = "drizzle"
-			}
+		// Auto-detect ORM, let user override
+		defaultORM := detectORM()
+		if defaultORM == "" {
+			defaultORM = "drizzle"
+		}
+		fmt.Printf("ORM (drizzle/prisma/typeorm) [%s]: ", defaultORM)
+		input, _ := reader.ReadString('\n')
+		orm := strings.TrimSpace(input)
+		if orm == "" {
+			orm = defaultORM
 		}
 
-		// Auto-detect dialect from ORM config
+		// Auto-detect dialect from ORM config, let user override
 		ormCfg := readORMConfig(orm)
-		dialect := ormCfg.dialect
-		if dialect != "" {
-			fmt.Printf("Detected database: %s (from %s config)\n", dialect, orm)
-		} else {
-			fmt.Print("Database (pg/mysql) [pg]: ")
-			input, _ := reader.ReadString('\n')
-			dialect = strings.TrimSpace(input)
-			if dialect == "" {
-				dialect = "pg"
-			}
+		defaultDialect := ormCfg.dialect
+		if defaultDialect == "" {
+			defaultDialect = "pg"
+		}
+		fmt.Printf("Database (pg/mysql) [%s]: ", defaultDialect)
+		input, _ = reader.ReadString('\n')
+		dialect := strings.TrimSpace(input)
+		if dialect == "" {
+			dialect = defaultDialect
 		}
 
-		// Auto-detect schema path from ORM config
-		schemaPath := ormCfg.schemaPath
-		if schemaPath == "" {
-			schemaPath = detectSchemaPath(orm)
+		// Auto-detect schema path, let user override
+		defaultSchema := ormCfg.schemaPath
+		if defaultSchema == "" {
+			defaultSchema = detectSchemaPath(orm)
 		}
-		if ormCfg.schemaPath != "" {
-			fmt.Printf("Detected schema path: %s (from %s config)\n", schemaPath, orm)
-		} else {
-			fmt.Printf("Schema path [%s]: ", schemaPath)
-			input, _ := reader.ReadString('\n')
-			if v := strings.TrimSpace(input); v != "" {
-				schemaPath = v
-			}
+		fmt.Printf("Schema path [%s]: ", defaultSchema)
+		input, _ = reader.ReadString('\n')
+		schemaPath := strings.TrimSpace(input)
+		if schemaPath == "" {
+			schemaPath = defaultSchema
 		}
 
 		// No connection field — migratex reads it from the ORM config at runtime

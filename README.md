@@ -161,14 +161,29 @@ your ORM schema (TypeScript)
   stores it as a DAG node in migrations/
 ```
 
+when you run `migratex generate`, it creates a folder structure like this:
+
 ```
 migrations/
-  graph.json                    # lightweight index (heads, metadata)
-  a1b2c3d4e5f6/
-    migration.json              # full node (parents, operations, checksums)
-    up.sql                      # apply
-    down.sql                    # revert
+├── graph.json                          # tracks the DAG — heads, node metadata
+│
+├── a1b2c3d4e5f6/                       # first migration
+│   ├── migration.json                  # parents, operations, checksums
+│   ├── up.sql                          # apply this migration
+│   └── down.sql                        # revert this migration
+│
+├── d4e5f6a7b8c9/                       # second migration (child of first)
+│   ├── migration.json
+│   ├── up.sql
+│   └── down.sql
+│
+└── f7g8h9i0j1k2/                       # merge migration (two parents)
+    ├── migration.json
+    ├── up.sql
+    └── down.sql
 ```
+
+each folder is one migration node. the folder name is the migration ID — a truncated SHA-256 hash, not a sequential number. `graph.json` at the root ties them together into the DAG.
 
 each migration node has:
 - **content-addressed ID** — SHA-256 of (parent IDs + operations), truncated to 12 hex chars

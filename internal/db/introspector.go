@@ -34,8 +34,9 @@ type Introspector interface {
 	// RecordMigration marks a migration as applied.
 	RecordMigration(id, checksum string) error
 
-	// Execute runs arbitrary SQL (for applying migrations).
-	Execute(sql string) error
+	// ApplyMigration executes the migration SQL and records it atomically.
+	// On PostgreSQL this runs inside a transaction; on MySQL it is best-effort.
+	ApplyMigration(id, upSQL, checksum string) error
 
 	// AcquireLock prevents concurrent migration runs.
 	AcquireLock() error

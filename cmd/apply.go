@@ -96,13 +96,9 @@ var applyCmd = &cobra.Command{
 
 			fmt.Printf("  Applying %s: %s...", node.ID, node.Description)
 
-			if err := introspector.Execute(node.UpSQL); err != nil {
+			if err := introspector.ApplyMigration(node.ID, node.UpSQL, expectedChecksum); err != nil {
 				fmt.Println(" FAILED")
 				return fmt.Errorf("applying migration %s: %w", node.ID, err)
-			}
-
-			if err := introspector.RecordMigration(node.ID, expectedChecksum); err != nil {
-				return fmt.Errorf("recording migration %s: %w", node.ID, err)
 			}
 
 			fmt.Println(" done")

@@ -314,9 +314,20 @@ func (m *Introspector) RecordMigration(id, checksum string) error {
 	return err
 }
 
-func (m *Introspector) Execute(sqlStr string) error {
-	_, err := m.conn.Exec(sqlStr)
-	return err
+// ApplyMigration executes the migration SQL then records it.
+// MySQL DDL is auto-committed so true atomicity is not possible here;
+// a crash between the two steps may leave the migration applied but unrecorded.
+func (m *Introspector) ApplyMigration(id, upSQL, checksum string) error {
+	if _, err := m.conn.Exec(upSQL); err != nil {
+		return fmt.Errorf("executing migration: %w", err)
+	}
+	if _, err := m.conn.Exec(`
+		INSERT IGNORE INTO _migratex_history (id, checksum)
+		VALUES (?, ?)
+	`, id, checksum); err != nil {
+		return fmt.Errorf("recording migration: %w", err)
+	}
+	return nil
 }
 
 // AcquireLock uses MySQL GET_LOCK for migration safety.

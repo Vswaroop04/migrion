@@ -372,10 +372,29 @@ func (p *Introspector) RecordMigration(id, checksum string) error {
 	return err
 }
 
-// Execute runs arbitrary SQL.
-func (p *Introspector) Execute(sqlStr string) error {
-	_, err := p.conn.Exec(sqlStr)
-	return err
+// ApplyMigration executes the migration SQL and records it in a single transaction.
+// If the process crashes between the two steps, the whole thing rolls back and
+// the migration will be retried cleanly on the next run.
+func (p *Introspector) ApplyMigration(id, upSQL, checksum string) error {
+	tx, err := p.conn.Begin()
+	if err != nil {
+		return fmt.Errorf("starting transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(upSQL); err != nil {
+		return fmt.Errorf("executing migration: %w", err)
+	}
+
+	if _, err := tx.Exec(`
+		INSERT INTO _migratex_history (id, checksum)
+		VALUES ($1, $2)
+		ON CONFLICT (id) DO NOTHING
+	`, id, checksum); err != nil {
+		return fmt.Errorf("recording migration: %w", err)
+	}
+
+	return tx.Commit()
 }
 
 // AcquireLock uses PostgreSQL advisory locks to prevent concurrent migrations.
